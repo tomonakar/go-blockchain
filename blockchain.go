@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// マイニングの難易度
+// 今回はハッシュの先頭３文字が０になればOKという設定にしている
+const MINING_DIFFICULTY = 3
+
 // Blockの構造体
 type Block struct {
 	timestamp    int64
@@ -59,7 +63,6 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 
 func (b *Block) Hash() [32]byte {
 	m, _ := json.Marshal(b)
-	fmt.Println(string(m))
 	return sha256.Sum256([]byte(m))
 }
 
@@ -92,6 +95,38 @@ func (bc *Blockchain) AddTransaction(sender string, recipient string, value floa
 	bc.transactionPool = append(bc.transactionPool, t)
 }
 
+// トランザクションプールをコピーするメソッド
+func (bc *Blockchain) CopyTransactionPool() []*Transaction {
+	transactions := make([]*Transaction, 0)
+	for _, t := range bc.transactionPool {
+		transactions = append(transactions,
+			NewTransaction(t.senderBlockchainAddress,
+				t.recipientBlockchainAddress,
+				t.value))
+	}
+	return transactions
+}
+
+// 証明が正しいか判定するメソッド
+func (bc *Blockchain) ValidProof(nonce int, previousHash [32]byte, transactions []*Transaction, difficulty int) bool {
+	zeros := strings.Repeat("0", difficulty)
+	guessBlock := Block{0, nonce, previousHash, transactions}
+	guessHashStr := fmt.Sprintf("%x", guessBlock.Hash())
+	fmt.Println(guessHashStr)
+	return guessHashStr[:difficulty] == zeros
+}
+
+// proof of workとなるnonceの算出
+func (bc *Blockchain) ProofOfWork() int {
+	transactions := bc.CopyTransactionPool()
+	previousHash := bc.LastBlock().Hash()
+	nonce := 0
+	for !bc.ValidProof(nonce, previousHash, transactions, MINING_DIFFICULTY) {
+		nonce += 1
+	}
+	return nonce
+}
+
 type Transaction struct {
 	senderBlockchainAddress    string
 	recipientBlockchainAddress string
@@ -104,9 +139,9 @@ func NewTransaction(sender string, recipient string, value float32) *Transaction
 
 func (t *Transaction) Print() {
 	fmt.Printf("%s\n", strings.Repeat("-", 40))
-	fmt.Printf(" sender_blockchain_address    %s\n", t.senderBlockchainAddress)
+	fmt.Printf(" sender_blockchain_address       %s\n", t.senderBlockchainAddress)
 	fmt.Printf(" recipient_blockchain_address    %s\n", t.recipientBlockchainAddress)
-	fmt.Printf(" value    %.1f\n", t.value)
+	fmt.Printf(" value                           %.1f\n", t.value)
 }
 
 func (t *Transaction) MarshalJSON() ([]byte, error) {
@@ -140,13 +175,15 @@ func main() {
 
 	blockChain.AddTransaction("A", "B", 1.0)
 	previousHash := blockChain.LastBlock().Hash()
-	blockChain.CreateBlock(5, previousHash)
+	nonce := blockChain.ProofOfWork()
+	blockChain.CreateBlock(nonce, previousHash)
 	blockChain.Print()
 
 	blockChain.AddTransaction("C", "D", 2.0)
 	blockChain.AddTransaction("X", "Y", 3.0)
 	previousHash = blockChain.LastBlock().Hash()
-	blockChain.CreateBlock(2, previousHash)
+	nonce = blockChain.ProofOfWork()
+	blockChain.CreateBlock(nonce, previousHash)
 	blockChain.Print()
 
 }
