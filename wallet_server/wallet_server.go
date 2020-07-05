@@ -39,7 +39,7 @@ func (ws *WalletServer) Index(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WalletServer) Wallet(w http.ResponseWriter, *http.Request) {
+func (ws *WalletServer) Wallet(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodPost:
 		w.Header().Add("Content-Type", "application/json")
