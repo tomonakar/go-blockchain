@@ -1,6 +1,7 @@
 package main
 
 import (
+	"goblockchain/utils"
 	"goblockchain/wallet"
 	"io"
 	"log"
@@ -55,7 +56,7 @@ func (ws *WalletServer) Wallet(w http.ResponseWriter, req *http.Request) {
 func (ws *WalletServer) CreateTransaction(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodPost:
-		io.WriteString(w, "success")
+		io.WriteString(w, string(utils.JsonStatus("success")))
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("ERROR: Invalid HTTP Method")
