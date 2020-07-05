@@ -28,15 +28,15 @@ import (
 // 8. Add the 4 checksum bytes from 7 at the end of extended RIPEMD-160 hash from 4 (25bytes)
 // 9. Convert the result from a byte string into base58
 
-type wallet struct {
+type Wallet struct {
 	privateKey        *ecdsa.PrivateKey
 	publicKey         *ecdsa.PublicKey
 	blockchainAddress string
 }
 
-func NewWallet() *wallet {
+func NewWallet() *Wallet {
 	// 1. Creating ECDSA private key (32bytes), public key (64bytes)
-	w := new(wallet)
+	w := new(Wallet)
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	w.privateKey = privateKey
 	w.publicKey = &w.privateKey.PublicKey
@@ -82,24 +82,36 @@ func NewWallet() *wallet {
 	return w
 }
 
-func (w *wallet) PrivateKey() *ecdsa.PrivateKey {
+func (w *Wallet) PrivateKey() *ecdsa.PrivateKey {
 	return w.privateKey
 }
 
-func (w *wallet) PrivateKeyStr() string {
+func (w *Wallet) PrivateKeyStr() string {
 	return fmt.Sprintf("%x", w.privateKey.D.Bytes())
 }
 
-func (w *wallet) PublicKey() *ecdsa.PublicKey {
+func (w *Wallet) PublicKey() *ecdsa.PublicKey {
 	return w.publicKey
 }
 
-func (w *wallet) PublicKeyStr() string {
+func (w *Wallet) PublicKeyStr() string {
 	return fmt.Sprintf("%x%x", w.publicKey.X.Bytes(), w.publicKey.Y.Bytes())
 }
 
-func (w *wallet) BlockchainAddress() string {
+func (w *Wallet) BlockchainAddress() string {
 	return w.blockchainAddress
+}
+
+func (w *Wallet) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		PrivateKey        string `json:private_key`
+		PublicKey         string `json:public_key`
+		BlockchainAddress string `json:blockchain_address`
+	}{
+		PrivateKey:        w.PrivateKeyStr(),
+		PublicKey:         w.PublicKeyStr(),
+		BlockchainAddress: w.BlockchainAddress(),
+	})
 }
 
 type Transaction struct {
