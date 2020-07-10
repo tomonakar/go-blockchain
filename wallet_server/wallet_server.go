@@ -1,14 +1,16 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"goblockchain/utils"
 	"goblockchain/wallet"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"path"
 	"strconv"
-	"text/template"
 )
 
 const tempDir = "templates"
@@ -30,8 +32,8 @@ func (ws *WalletServer) Gateway() string {
 	return ws.gateway
 }
 
-func (ws *WalletServer) Index(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
+func (ws *WalletServer) Index(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
 	case http.MethodGet:
 		t, _ := template.ParseFiles(path.Join(tempDir, "index.html"))
 		t.Execute(w, "")
@@ -56,7 +58,24 @@ func (ws *WalletServer) Wallet(w http.ResponseWriter, req *http.Request) {
 func (ws *WalletServer) CreateTransaction(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodPost:
-		io.WriteString(w, string(utils.JsonStatus("success")))
+		decoder := json.NewDecoder(req.Body)
+		var t wallet.TransactionRequest
+		err := decoder.Decode(&t)
+		if err != nil {
+			log.Printf("ERROR: %v", err)
+			io.WriteString(w, string(utils.JsonStatus("fail")))
+			return
+		}
+		if !t.Validate() {
+			log.Println("ERROR: missing field(s)")
+			io.WriteString(w, string(utils.JsonStatus("fail")))
+			return
+		}
+		fmt.Println(*t.SenderPublicKey)
+		fmt.Println(*t.SenderBlockchainAddress)
+		fmt.Println(*t.SenderPrivateKey)
+		fmt.Println(*t.RecipientBlockchainAddress)
+		fmt.Println(*t.Value)
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		log.Println("ERROR: Invalid HTTP Method")
