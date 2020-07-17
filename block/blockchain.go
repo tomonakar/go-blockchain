@@ -8,6 +8,7 @@ import (
 	"goblockchain/utils"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,7 @@ const (
 	MINING_DIFFICULTY = 3                // マイニングの難易度
 	MINING_SENDER     = "THE BLOCKCHAIN" // マイニングSenderとして送る側のブロックチェーンアドレス
 	MINING_REWORD     = 1.0              // 報酬
+	MINING_TIMER_SEC  = 20               // マイニング間隔の指定
 )
 
 // Blockの構造体
@@ -76,6 +78,7 @@ type Blockchain struct {
 	chain             []*Block
 	blockchainAddress string
 	port              uint16
+	mux               sync.Mutex
 }
 
 func NewBlockchain(blockchainAddress string, port uint16) *Blockchain {
@@ -179,12 +182,26 @@ func (bc *Blockchain) ProofOfWork() int {
 
 // マイニングのメソッド
 func (bc *Blockchain) Mining() bool {
+	// 1回目のマイニングが呼ばれている際には、重複してマイニングを呼びたく無いのでロックを掛ける
+	bc.mux.Lock()
+	defer bc.mux.Unlock()
+
+	// トランザクションプールがからの場合はマイニングしない（Demo用の仕様）
+	if len(bc.transactionPool) == 0 {
+		return false
+	}
+
 	bc.AddTransaction(MINING_SENDER, bc.blockchainAddress, MINING_REWORD, nil, nil)
 	nonce := bc.ProofOfWork()
 	previousHash := bc.LastBlock().Hash()
 	bc.CreateBlock(nonce, previousHash)
 	log.Println("action=mining, status=success")
 	return true
+}
+
+func (bc *Blockchain) StartMining() {
+	bc.Mining()
+	_ = time.AfterFunc(time.Second*MINING_TIMER_SEC, bc.StartMining)
 }
 
 func (bc *Blockchain) CaluculateTotalAmount(blockchainAddress string) float32 {
